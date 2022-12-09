@@ -1,12 +1,14 @@
 from app import app
 from app.forms import LoginForm
 from app.models import User
-from flask import render_template, flash, redirect, url_for
-from flask_login import current_user, login_user, logout_user
+from flask import render_template, flash, redirect, url_for, request
+from flask_login import current_user, login_user, logout_user, login_required
+from werkzeug.urls import url_parse
 
 # index/home page
 @app.route('/')
 @app.route('/index')
+@login_required     # user has to be logged in to view page
 def index():
     # dummy user
     user = {'username': 'Fynn'}
@@ -22,7 +24,7 @@ def index():
         }
     ]
     # render 'Home' page
-    return render_template('index.html', title='Home', user=user, posts=posts)
+    return render_template('index.html', title='Home', posts=posts)
 
 # login page
 @app.route('/login', methods=['GET', 'POST'])   # allow POST (submitting of data)
@@ -38,7 +40,12 @@ def login():
             flash('Invalid username or password')
             return redirect(url_for('login'))
         login_user(user, remember=form.remember_me.data)
-        return redirect(url_for('index'))
+        # get 'next' string value from url
+        next_page = request.args.get('next')
+        # checks if next doesn't exist and protects from malicious attack (only allows redirection relative to same site)
+        if not next_page or url_parse(next_page).netloc != '':
+            next_page = url_for('index')
+        return redirect(next_page)
     # render login if 1st time loading
     return render_template('login.html',  title='Sign In', form=form)
 
